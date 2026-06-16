@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrightMart Edge Count Demo</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --high: #ef4444;
+      --border: #1f2937;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    p.sub {
+      margin: 0 0 24px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .row { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      background: #0b1220;
+      color: var(--text);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 15px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #082f49;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .preview-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 700px) {
+      .preview-wrap { grid-template-columns: 1fr; }
+    }
+
+    img.preview {
+      width: 100%;
+      max-height: 320px;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #0b1220;
+    }
+
+    .metric {
+      padding: 12px;
+      border-radius: 12px;
+      background: #0b1220;
+      border: 1px solid #334155;
+      margin-bottom: 10px;
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .metric .value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .low { background: rgba(34, 197, 94, 0.16); color: #86efac; }
+    .medium { background: rgba(245, 158, 11, 0.16); color: #fcd34d; }
+    .high { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+
+    .status {
+      color: var(--muted);
+      margin-top: 10px;
+      min-height: 22px;
+      line-height: 1.4;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #cbd5e1;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>BrightMart Edge Count Demo</h1>
+    <p class="sub">
+      Safari-ready demo for local ONNX inference. Select your exported <strong>.onnx</strong> model and a <strong>.jpg/.png</strong> image,
+      then run people-count prediction directly in the browser.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row">
+          <div>
+            <label for="modelFile">ONNX model file</label>
+            <input id="modelFile" type="file" accept=".onnx" />
+          </div>
+          <div>
+            <label for="imageFile">Input image</label>
+            <input id="imageFile" type="file" accept="image/png,image/jpeg,image/jpg" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 12px;">
+          <div>
+            <label for="storeId">Store ID</label>
+            <input id="storeId" type="text" value="store_01" />
+          </div>
+          <div>
+            <label for="zoneId">Zone ID</label>
+            <input id="zoneId" type="text" value="entrance" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 12px;">
+          <div>
+            <label for="lowThreshold">Low threshold</label>
+            <input id="lowThreshold" type="number" value="20" min="0" />
+          </div>
+          <div>
+            <label for="highThreshold">High threshold</label>
+            <input id="highThreshold" type="number" value="35" min="0" />
+          </div>
+        </div>
+
+        <button id="runBtn">Run ONNX Inference</button>
+        <div id="status" class="status">Waiting for model and image.</div>
+      </div>
+
+      <div class="card preview-wrap">
+        <div>
+          <label>Selected image</label>
+          <img id="preview" class="preview" alt="Preview" />
+        </div>
+        <div>
+          <div class="metric">
+            <div class="label">Predicted raw count</div>
+            <div id="rawCount" class="value">-</div>
+          </div>
+          <div class="metric">
+            <div class="label">Rounded count</div>
+            <div id="roundedCount" class="value">-</div>
+          </div>
+          <div class="metric">
+            <div class="label">Occupancy level</div>
+            <div id="occupancyLevel" class="value">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <label>Structured output</label>
+        <div id="jsonOutput" class="mono">No prediction yet.</div>
+      </div>
+
+      <div class="card small">
+        <strong>Notes</strong><br />
+        - This mobile demo expects a normal image file (.jpg/.png), not a .npy array.<br />
+        - The browser resizes the image to <strong>224x224</strong>, normalizes pixels to <strong>0-1</strong>, and converts it to <strong>CHW</strong> order to match the training pipeline.<br />
+        - The model runs locally in the browser, so this is closer to real edge inference than opening Databricks on your phone.<br />
+      </div>
+    </div>
+  </div>
+
+  <canvas id="hiddenCanvas" width="224" height="224" style="display:none;"></canvas>
+
+  <script>
+    const modelFileInput = document.getElementById('modelFile');
+    const imageFileInput = document.getElementById('imageFile');
+    const runBtn = document.getElementById('runBtn');
+    const statusEl = document.getElementById('status');
+    const previewEl = document.getElementById('preview');
+    const rawCountEl = document.getElementById('rawCount');
+    const roundedCountEl = document.getElementById('roundedCount');
+    const occupancyLevelEl = document.getElementById('occupancyLevel');
+    const jsonOutputEl = document.getElementById('jsonOutput');
+    const canvas = document.getElementById('hiddenCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function classifyOccupancy(count, lowThreshold, highThreshold) {
+      if (count < lowThreshold) return 'low';
+      if (count < highThreshold) return 'medium';
+      return 'high';
+    }
+
+    function occupancyClass(level) {
+      if (level === 'low') return 'pill low';
+      if (level === 'medium') return 'pill medium';
+      return 'pill high';
+    }
+
+    function formatIsoNow() {
+      return new Date().toISOString();
+    }
+
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Unable to load image file.'));
+        };
+        img.src = url;
+      });
+    }
+
+    function preprocessImageToTensor(imageElement) {
+      ctx.clearRect(0, 0, 224, 224);
+      ctx.drawImage(imageElement, 0, 0, 224, 224);
+
+      const imageData = ctx.getImageData(0, 0, 224, 224).data;
+      const floatData = new Float32Array(1 * 3 * 224 * 224);
+      const hw = 224 * 224;
+
+      for (let y = 0; y < 224; y++) {
+        for (let x = 0; x < 224; x++) {
+          const pixelIndex = (y * 224 + x) * 4;
+          const r = imageData[pixelIndex] / 255.0;
+          const g = imageData[pixelIndex + 1] / 255.0;
+          const b = imageData[pixelIndex + 2] / 255.0;
+          const offset = y * 224 + x;
+
+          floatData[offset] = r;
+          floatData[hw + offset] = g;
+          floatData[(2 * hw) + offset] = b;
+        }
+      }
+
+      return new ort.Tensor('float32', floatData, [1, 3, 224, 224]);
+    }
+
+    imageFileInput.addEventListener('change', async () => {
+      const file = imageFileInput.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      previewEl.src = url;
+      setStatus('Image selected.');
+    });
+
+    runBtn.addEventListener('click', async () => {
+      const modelFile = modelFileInput.files?.[0];
+      const imageFile = imageFileInput.files?.[0];
+
+      if (!modelFile) {
+        setStatus('Please select the ONNX model file first.');
+        return;
+      }
+      if (!imageFile) {
+        setStatus('Please select an image file first.');
+        return;
+      }
+
+      runBtn.disabled = true;
+      setStatus('Loading model and running inference...');
+
+      try {
+        const lowThreshold = parseInt(document.getElementById('lowThreshold').value, 10);
+        const highThreshold = parseInt(document.getElementById('highThreshold').value, 10);
+        const storeId = document.getElementById('storeId').value || 'store_01';
+        const zoneId = document.getElementById('zoneId').value || 'entrance';
+
+        const modelArrayBuffer = await modelFile.arrayBuffer();
+        const session = await ort.InferenceSession.create(modelArrayBuffer, {
+          executionProviders: ['wasm'],
+          graphOptimizationLevel: 'all'
+        });
+
+        const imageElement = await loadImageFromFile(imageFile);
+        const inputTensor = preprocessImageToTensor(imageElement);
+
+        const inputName = session.inputNames[0];
+        const outputName = session.outputNames[0];
+        const results = await session.run({ [inputName]: inputTensor });
+        const rawPrediction = Number(results[outputName].data[0]);
+        const clippedPrediction = Math.max(0, rawPrediction);
+        const roundedPrediction = Math.round(clippedPrediction);
+        const occupancyLevel = classifyOccupancy(roundedPrediction, lowThreshold, highThreshold);
+
+        rawCountEl.textContent = rawPrediction.toFixed(4);
+        roundedCountEl.textContent = String(roundedPrediction);
+        occupancyLevelEl.innerHTML = `<span class="${occupancyClass(occupancyLevel)}">${occupancyLevel}</span>`;
+
+        const structuredOutput = {
+          image_name: imageFile.name,
+          store_id: storeId,
+          zone_id: zoneId,
+          inference_timestamp: formatIsoNow(),
+          predicted_count_raw: rawPrediction,
+          predicted_count: roundedPrediction,
+          occupancy_level: occupancyLevel,
+          low_threshold: lowThreshold,
+          high_threshold: highThreshold,
+          model_name: 'mobilenetv3_small_count_regressor',
+          model_version: 'v1',
+          runtime: 'onnxruntime-web',
+          device_type: 'mobile_browser'
+        };
+
+        jsonOutputEl.textContent = JSON.stringify(structuredOutput, null, 2);
+        setStatus('Inference completed successfully.');
+      } catch (error) {
+        console.error(error);
+        setStatus(`Inference failed: ${error.message}`);
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
